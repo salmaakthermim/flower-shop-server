@@ -64,6 +64,31 @@ async function run() {
       res.json({ user, token });
     });
 
+
+
+    // POST /google-login
+  app.post("/google-login", async (req, res) => {
+  const { name, email, avatar } = req.body;
+
+  let user = await user.findOne({ email });
+
+  if (!user) {
+    user = await user.create({
+      name,
+      email,
+      avatar,
+      role: "customer",
+    });
+  }
+
+  const token = generateToken(user._id);
+
+  res.json({
+    token,
+    user,
+  });
+});
+
     app.post("/login", async (req, res) => {
       const { email, password } = req.body;
 
