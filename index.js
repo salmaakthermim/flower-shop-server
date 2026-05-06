@@ -146,7 +146,7 @@ app.post("/flowers", async (req, res) => {
   const db = await connectDB();
   const flowersCollection = db.collection("flowers");
 
-  const { name, price, image, description } = req.body;
+  const { name, price, image, description, category, occasion } = req.body;
 
   if (!name || !price || !image) {
     return res.status(400).json({ message: "Missing required fields" });
@@ -157,6 +157,8 @@ app.post("/flowers", async (req, res) => {
     price: Number(price),
     image,
     description: description || "",
+    category: category || "",
+    occasion: occasion || "",
     createdAt: new Date(),
   };
 
@@ -242,15 +244,22 @@ app.post("/orders", async (req, res) => {
   const db = await connectDB();
   const ordersCollection = db.collection("orders");
 
-  const { name, email, phone, items, total } = req.body;
+  const { name, email, phone, items, total, address, note } = req.body;
 
   if (!name || !email || !phone || !Array.isArray(items)) {
     return res.status(400).json({ message: "Invalid order data" });
   }
 
+  // estimated delivery = 3 days from now
+  const estimated = new Date();
+  estimated.setDate(estimated.getDate() + 3);
+
   const order = {
     orderId: "ORD-" + Date.now(),
     customer: { name, email, phone },
+    deliveryAddress: address || "",
+    deliveryNote: note || "",
+    estimatedDelivery: estimated,
     products: items,
     totalPrice: Number(total),
     orderStatus: "pending",
@@ -435,11 +444,24 @@ app.patch("/orders/:id/status", async (req, res) => {
   const db = await connectDB();
   const ordersCollection = db.collection("orders");
   const { orderStatus } = req.body;
+  const update = { orderStatus };
+  if (orderStatus === "delivered") update.deliveredAt = new Date();
   await ordersCollection.updateOne(
     { _id: new ObjectId(req.params.id) },
-    { $set: { orderStatus } }
+    { $set: update }
   );
   res.json({ message: "Order status updated" });
+});
+
+app.patch("/orders/:id/delivery", async (req, res) => {
+  const db = await connectDB();
+  const ordersCollection = db.collection("orders");
+  const { deliveryAddress, deliveryNote, estimatedDelivery } = req.body;
+  await ordersCollection.updateOne(
+    { _id: new ObjectId(req.params.id) },
+    { $set: { deliveryAddress, deliveryNote, estimatedDelivery: new Date(estimatedDelivery) } }
+  );
+  res.json({ message: "Delivery info updated" });
 });
 
 app.delete("/orders/:id", async (req, res) => {
